@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bài tập tương tác — Giáo trình Hán ngữ</title>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --paper:#F3EEE1; --ink:#2B2620; --ink-soft:#5B5346;
+    --jade:#3D6B5C; --jade-dark:#2A4C41; --seal:#B23A2E;
+    --grid-line:#C9BFA6; --card-bg:#FBF8F0;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:'Be Vietnam Pro',sans-serif; padding-bottom:120px;}
+
+  /* ---------- top toolbar ---------- */
+  .toolbar{
+    position:sticky; top:0; z-index:50;
+    background:var(--jade-dark);
+    display:flex; align-items:center; gap:6px;
+    padding:10px 14px; flex-wrap:wrap;
+    box-shadow:0 2px 10px rgba(0,0,0,0.15);
+  }
+  .toolbar .name-field{
+    background:rgba(255,255,255,0.12); border:none; border-radius:8px;
+    color:#fff; padding:8px 10px; font-size:13px; width:140px;
+    font-family:'Be Vietnam Pro',sans-serif;
+  }
+  .toolbar .name-field::placeholder{color:rgba(255,255,255,0.6);}
+  .tool-btn{
+    background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.18);
+    color:#fff; padding:8px 12px; border-radius:8px; cursor:pointer;
+    font-size:13px; font-weight:600; display:flex; align-items:center; gap:6px;
+  }
+  .tool-btn.active{background:var(--seal); border-color:var(--seal);}
+  .tool-btn:hover{background:rgba(255,255,255,0.18);}
+  .tool-btn.active:hover{background:#c94434;}
+  .spacer{flex:1;}
+  .save-btn{
+    background:var(--seal); color:#fff; border:none; font-weight:700;
+    padding:9px 18px; border-radius:20px; cursor:pointer; font-size:13px;
+  }
+  .save-btn:hover{background:#c94434;}
+
+  /* ---------- color swatches ---------- */
+  .color-swatches{display:flex; align-items:center; gap:6px; padding:0 6px; border-left:1px solid rgba(255,255,255,0.25); margin-left:2px;}
+  .swatch{
+    width:22px; height:22px; border-radius:50%; border:2px solid rgba(255,255,255,0.5);
+    cursor:pointer; padding:0;
+  }
+  .swatch.active{border-color:#fff; box-shadow:0 0 0 2px var(--seal);}
+
+  /* ---------- side audio tab ---------- */
+  .audio-tab{
+    position:fixed; top:50%; right:0; transform:translateY(-50%);
+    z-index:60; background:var(--jade); color:#fff; border:none;
+    padding:14px 8px; border-radius:10px 0 0 10px; cursor:pointer;
+    font-size:13px; font-weight:700; writing-mode:vertical-rl;
+    box-shadow:-2px 0 10px rgba(0,0,0,0.15);
+  }
+  .audio-tab:hover{background:var(--jade-dark);}
+  .audio-panel{
+    position:fixed; top:0; right:-320px; width:300px; height:100%;
+    background:var(--card-bg); z-index:61; box-shadow:-4px 0 16px rgba(0,0,0,0.18);
+    padding:70px 18px 18px; transition:right .25s ease;
+    display:flex; flex-direction:column; gap:12px; overflow-y:auto;
+  }
+  .audio-panel.open{right:0;}
+  .audio-panel .close-audio{
+    position:absolute; top:16px; right:16px; background:none; border:none;
+    font-size:20px; color:var(--ink-soft); cursor:pointer;
+  }
+  .audio-panel h3{font-family:'Noto Serif SC',serif; color:var(--jade-dark); margin:0 0 6px;}
+  .audio-item{
+    background:#fff; border:1px solid var(--grid-line); border-radius:10px;
+    padding:10px 14px;
+  }
+  .audio-item .label{display:block; font-weight:700; color:var(--jade-dark); font-size:13px; margin-bottom:6px;}
+  .audio-item audio{width:100%; height:34px;}
+
+  /* ---------- pdf pages ---------- */
+  .pages-wrap{max-width:900px; margin:20px auto 0; padding:0 16px; display:flex; flex-direction:column; gap:22px;}
+  .page-box{
+    position:relative; background:#fff; border-radius:10px; overflow:hidden;
+    box-shadow:0 2px 14px rgba(0,0,0,0.12); line-height:0;
+  }
+  .page-box canvas{display:block; width:100%; height:auto;}
+  .page-box .bg-canvas{position:relative; z-index:1;}
+  .page-box .overlay-canvas{position:absolute; top:0; left:0; z-index:2; touch-action:none;}
+  .page-num-tag{
+    position:absolute; bottom:8px; right:10px; z-index:3;
+    background:rgba(43,38,32,0.65); color:#fff; font-size:11px;
+    padding:3px 8px; border-radius:10px;
+  }
+
+  .text-input-floating{
+    position:absolute; z-index:10; font-family:'Noto Serif SC',serif; font-size:18px;
+    border:1.5px dashed var(--seal); background:rgba(255,255,255,0.92);
+    padding:2px 6px; min-width:60px; outline:none; color:var(--ink);
+  }
+
+  /* ---------- picker mode (no PDF baked in yet) ---------- */
+  .picker-mode{
+    max-width:520px; margin:80px auto; text-align:center;
+    background:var(--card-bg); border:2px dashed var(--grid-line); border-radius:16px;
+    padding:40px 24px;
+  }
+  .picker-mode h2{font-family:'Noto Serif SC',serif; color:var(--jade-dark); margin-top:0;}
+  .picker-mode p{color:var(--ink-soft); font-size:14px; line-height:1.7;}
+  .picker-mode input[type=file]{margin-top:14px;}
+
+  .footer-note{
+    text-align:center; font-size:12px; color:var(--ink-soft); margin-top:14px;
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <input class="name-field" id="studentName" placeholder="Họ tên học viên">
+  <button class="tool-btn active" data-tool="pen">✏️ Vẽ</button>
+  <button class="tool-btn" data-tool="text">🔤 Chèn chữ</button>
+  <button class="tool-btn" data-tool="eraser">🧽 Tẩy</button>
+  <button class="tool-btn" id="undoBtn">↩️ Hoàn tác</button>
+  <div class="color-swatches" id="colorSwatches">
+    <button class="swatch active" data-color="#2E5AAC" style="background:#2E5AAC" title="Xanh dương"></button>
+    <button class="swatch" data-color="#B23A2E" style="background:#B23A2E" title="Đỏ"></button>
+    <button class="swatch" data-color="#2A7A3B" style="background:#2A7A3B" title="Xanh lá"></button>
+    <button class="swatch" data-color="#7A3DA6" style="background:#7A3DA6" title="Tím"></button>
+    <button class="swatch" data-color="#2B2620" style="background:#2B2620" title="Đen"></button>
+  </div>
+  <div class="spacer"></div>
+  <button class="save-btn" id="saveBtn">Lưu bài làm (PDF)</button>
+</div>
+
+<button class="audio-tab" id="audioTab">🎧 Nghe âm thanh</button>
+<div class="audio-panel" id="audioPanel">
+  <button class="close-audio" id="closeAudio">✕</button>
+  <h3>🎧 Âm thanh bài học</h3>
+  <div id="audioList"></div>
+</div>
+
+<div id="pickerMode" class="picker-mode">
+  <h2>Xem thử bài tập</h2>
+  <p>Bản này chưa gắn sẵn file PDF của bài học. Chọn 1 file PDF từ máy để xem thử giao diện — khi dùng chính thức, Claude sẽ nhúng sẵn PDF bài học vào file, học viên mở link ra là thấy bài luôn, không cần chọn file.</p>
+  <input type="file" id="pdfPicker" accept="application/pdf">
+</div>
+
+<div class="pages-wrap" id="pagesWrap" style="display:none;"></div>
+
+<script>
+/* ============================================================
+   HƯỚNG DẪN GHÉP BÀI THẬT (dành cho Claude khi hoàn thiện bài):
+   1) Thay PDF_BASE64 bên dưới bằng data URI của file PDF bài học
+      (data:application/pdf;base64,....)
+   2) Thay các AUDIO_SECTIONS bên dưới bằng nhãn + data URI mp3
+      lấy từ tool "audio-to-embed-tool.html" — âm thanh sẽ hiện
+      trong tab "🎧 Nghe âm thanh" trượt ra từ mép phải màn hình
+   3) Xóa khối "picker-mode" phía trên nếu muốn (không bắt buộc,
+      nó tự ẩn khi PDF_BASE64 có giá trị)
+   ============================================================ */
+const PDF_BASE64 = ""; // <-- dán data URI PDF vào đây khi hoàn thiện
+
+const AUDIO_SECTIONS = [
+  // { label: "Phần 1 · Thanh mẫu", src: "data:audio/mpeg;base64,...." },
+  // { label: "Phần 2 · Hội thoại", src: "data:audio/mpeg;base64,...." },
+];
+
+/* ---------- render audio side tab ---------- */
+const audioList = document.getElementById('audioList');
+const audioPanel = document.getElementById('audioPanel');
+const audioTab = document.getElementById('audioTab');
+AUDIO_SECTIONS.forEach(sec => {
+  const div = document.createElement('div');
+  div.className = 'audio-item';
+  div.innerHTML = `<span class="label">${sec.label}</span><audio controls src="${sec.src}"></audio>`;
+  audioList.appendChild(div);
+});
+if(!AUDIO_SECTIONS.length){ audioTab.style.display = 'none'; }
+audioTab.addEventListener('click', () => audioPanel.classList.add('open'));
+document.getElementById('closeAudio').addEventListener('click', () => audioPanel.classList.remove('open'));
+
+/* ---------- tool state ---------- */
+let currentTool = 'pen';
+let currentColor = '#2E5AAC';
+let lastActivePage = 0;
+document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tool-btn[data-tool]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentTool = btn.dataset.tool;
+  });
+});
+document.querySelectorAll('.swatch').forEach(sw => {
+  sw.addEventListener('click', () => {
+    document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+    sw.classList.add('active');
+    currentColor = sw.dataset.color;
+  });
+});
+function doUndo(){
+  const page = pages[lastActivePage];
+  if(page && page.actions.length){ page.actions.pop(); redraw(lastActivePage); }
+}
+document.getElementById('undoBtn').addEventListener('click', doUndo);
+window.addEventListener('keydown', (e) => {
+  if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z'){
+    e.preventDefault();
+    doUndo();
+  }
+});
+
+/* ---------- pdf.js setup ---------- */
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+const pagesWrap = document.getElementById('pagesWrap');
+const pickerMode = document.getElementById('pickerMode');
+let pages = []; // {bgCanvas, overlayCanvas, actions:[], width, height}
+
+async function loadPdf(dataUri){
+  pickerMode.style.display = 'none';
+  pagesWrap.style.display = 'flex';
+  pagesWrap.innerHTML = '';
+  pages = [];
+
+  const base64 = dataUri.split(',')[1];
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++) bytes[i] = binary.charCodeAt(i);
+
+  const pdf = await pdfjsLib.getDocument({data: bytes}).promise;
+  const targetWidth = 820;
+
+  for(let pageNum=1; pageNum<=pdf.numPages; pageNum++){
+    const page = await pdf.getPage(pageNum);
+    const baseViewport = page.getViewport({scale:1});
+    const scale = targetWidth / baseViewport.width;
+    const viewport = page.getViewport({scale});
+
+    const box = document.createElement('div');
+    box.className = 'page-box';
+    box.style.width = viewport.width + 'px';
+    box.style.height = viewport.height + 'px';
+
+    const bgCanvas = document.createElement('canvas');
+    bgCanvas.className = 'bg-canvas';
+    bgCanvas.width = viewport.width;
+    bgCanvas.height = viewport.height;
+
+    const overlayCanvas = document.createElement('canvas');
+    overlayCanvas.className = 'overlay-canvas';
+    overlayCanvas.width = viewport.width;
+    overlayCanvas.height = viewport.height;
+    overlayCanvas.style.width = '100%';
+    overlayCanvas.style.height = '100%';
+
+    const tag = document.createElement('div');
+    tag.className = 'page-num-tag';
+    tag.textContent = 'Trang ' + pageNum;
+
+    box.appendChild(bgCanvas);
+    box.appendChild(overlayCanvas);
+    box.appendChild(tag);
+    pagesWrap.appendChild(box);
+
+    await page.render({canvasContext: bgCanvas.getContext('2d'), viewport}).promise;
+
+    const pageIndex = pages.length;
+    pages.push({bgCanvas, overlayCanvas, actions: [], width: viewport.width, height: viewport.height});
+    setupOverlay(overlayCanvas, pageIndex, box);
+  }
+}
+
+/* ---------- drawing + text logic ---------- */
+function setupOverlay(canvas, pageIndex, box){
+  const ctx = canvas.getContext('2d');
+  let drawing = false;
+  let currentStroke = null;
+
+  const relPos = (e) => {
+    const r = canvas.getBoundingClientRect();
+    const cx = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+    const cy = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
+    return {x: cx * (canvas.width / r.width), y: cy * (canvas.height / r.height)};
+  };
+
+  const start = (e) => {
+    lastActivePage = pageIndex;
+    if(currentTool === 'text'){
+      e.preventDefault();
+      openTextInput(box, canvas, pageIndex, e);
+      return;
+    }
+    drawing = true;
+    const p = relPos(e);
+    currentStroke = {type:'stroke', tool: currentTool, color: currentColor, points:[p]};
+    e.preventDefault();
+  };
+  const move = (e) => {
+    if(!drawing || !currentStroke) return;
+    const p = relPos(e);
+    currentStroke.points.push(p);
+    redraw(pageIndex, currentStroke);
+    e.preventDefault();
+  };
+  const end = () => {
+    if(drawing && currentStroke && currentStroke.points.length > 1){
+      pages[pageIndex].actions.push(currentStroke);
+    }
+    drawing = false; currentStroke = null;
+    redraw(pageIndex);
+  };
+
+  canvas.addEventListener('mousedown', start);
+  canvas.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', end);
+  canvas.addEventListener('touchstart', start, {passive:false});
+  canvas.addEventListener('touchmove', move, {passive:false});
+  canvas.addEventListener('touchend', end);
+}
+
+function openTextInput(box, canvas, pageIndex, e){
+  const r = canvas.getBoundingClientRect();
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  const localX = clientX - r.left;   // toạ độ tương đối trong canvas (CSS px), dùng để lưu vị trí chữ
+  const localY = clientY - r.top;
+
+  const input = document.createElement('input');
+  input.className = 'text-input-floating';
+  input.type = 'text';
+  input.style.position = 'fixed';
+  input.style.left = clientX + 'px';
+  input.style.top = (clientY - 14) + 'px';
+  input.style.color = currentColor;
+  input.style.zIndex = '999';
+  document.body.appendChild(input);
+  // focus ngay khung tiếp theo để trình duyệt kịp gắn phần tử vào DOM
+  requestAnimationFrame(() => input.focus());
+
+  let committed = false;
+  const commit = () => {
+    if(committed) return;
+    committed = true;
+    const val = input.value.trim();
+    if(val){
+      const scaleX = canvas.width / r.width;
+      const scaleY = canvas.height / r.height;
+      pages[pageIndex].actions.push({
+        type:'text', x: localX*scaleX, y: localY*scaleY, text: val, color: currentColor
+      });
+    }
+    input.remove();
+    redraw(pageIndex);
+  };
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', (ev) => {
+    if(ev.key === 'Enter'){ ev.preventDefault(); input.blur(); }
+    if(ev.key === 'Escape'){ committed = true; input.remove(); }
+  });
+}
+
+function redraw(pageIndex, liveStroke){
+  const page = pages[pageIndex];
+  const ctx = page.overlayCanvas.getContext('2d');
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,page.overlayCanvas.width, page.overlayCanvas.height);
+
+  const drawStroke = (stroke) => {
+    ctx.globalCompositeOperation = stroke.tool === 'eraser' ? 'destination-out' : 'source-over';
+    ctx.lineWidth = stroke.tool === 'eraser' ? 22 : 2.6;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.strokeStyle = stroke.color || '#2E5AAC';
+    ctx.beginPath();
+    stroke.points.forEach((p,i) => i===0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y));
+    ctx.stroke();
+  };
+  const drawText = (item) => {
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.font = '26px "Noto Serif SC", serif';
+    ctx.fillStyle = item.color || '#2E5AAC';
+    ctx.fillText(item.text, item.x, item.y);
+  };
+
+  page.actions.forEach(a => a.type === 'stroke' ? drawStroke(a) : drawText(a));
+  if(liveStroke) drawStroke(liveStroke);
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+/* ---------- picker mode fallback for local testing ---------- */
+document.getElementById('pdfPicker').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => loadPdf(ev.target.result);
+  reader.readAsDataURL(file);
+});
+
+if(PDF_BASE64){ loadPdf(PDF_BASE64); }
+
+/* ---------- export to PDF ---------- */
+document.getElementById('saveBtn').addEventListener('click', async () => {
+  if(!pages.length){ alert('Chưa có bài tập nào được tải.'); return; }
+  const { jsPDF } = window.jspdf;
+  const first = pages[0];
+  const orientation = first.width > first.height ? 'l' : 'p';
+  const doc = new jsPDF({orientation, unit:'px', format:[first.width, first.height]});
+
+  for(let i=0;i<pages.length;i++){
+    const page = pages[i];
+    const merged = document.createElement('canvas');
+    merged.width = page.width; merged.height = page.height;
+    const mctx = merged.getContext('2d');
+    mctx.drawImage(page.bgCanvas, 0, 0);
+    mctx.drawImage(page.overlayCanvas, 0, 0);
+
+    if(i > 0) doc.addPage([page.width, page.height], page.width > page.height ? 'l':'p');
+    doc.addImage(merged.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, page.width, page.height);
+  }
+
+  const name = document.getElementById('studentName').value.trim().replace(/\s+/g,'') || 'HocVien';
+  doc.save(`BaiLam_${name}.pdf`);
+});
+</script>
+</body>
+</html>
